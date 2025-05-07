@@ -61,3 +61,6 @@ Homestead.yaml
 !/public/fonts/.gitkeep
 /public/images/*
 !/public/images/.gitkeep
+.scribe/*
+public/vendor/scribe/*
+resources/views/scribe/*

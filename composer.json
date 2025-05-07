@@ -10,6 +10,7 @@
         "google/apiclient": "^2.15",
         "guzzlehttp/guzzle": "^7.2",
         "hashids/hashids": "^4.1",
+        "knuckleswtf/scribe": "*",
         "laravel/framework": "^9.0",
         "laravel/sanctum": "^2.11",
         "laravel/socialite": "^5.12",

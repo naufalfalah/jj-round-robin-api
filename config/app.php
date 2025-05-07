@@ -14,7 +14,7 @@ return [
     */
 
     'name' => env('APP_NAME', 'Laravel'),
-    
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
@@ -120,7 +120,7 @@ return [
     */
 
     'key' => env('APP_KEY'),
-'wp_api_key' => env('WP_API_KEY'),
+    'wp_api_key' => env('WP_API_KEY'),
     'nmp_path' => env('NPM_PATH'),
 
     'cipher' => 'AES-256-CBC',
