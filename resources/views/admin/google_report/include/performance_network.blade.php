@@ -1,0 +1,10 @@
+<tr>
+    <td>UNSPECIFIED</td>
+    <td>17686</td>
+    <td>1557</td>
+    <td>8.80%</td>
+    <td>10108.47</td>
+    <td>21.00</td>
+    <td>21.00</td>
+    <td>0.00</td>
+</tr>
