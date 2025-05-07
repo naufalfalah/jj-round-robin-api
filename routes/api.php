@@ -1,43 +1,48 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\FetchLeadsController;
+use App\Http\Controllers\Api\PayNowController;
+use App\Http\Controllers\Api\GoogleAdsController;
+use App\Http\Controllers\Api\TourController;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| is assigned the "api" middleware group. Enjoy building your API!
-|
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
+// Routes with XSS Middleware
+Route::middleware(['XSS'])->group(function () {
+    Route::prefix('auth')->controller(AuthController::class)->group(function () {
+        Route::post('/login', 'login')->name('auth.login');
+        Route::post('/refresh-token', 'refresh')->name('auth.refresh-token');
+    });
 
-Route::namespace('App\Http\Controllers\Api')->prefix('lead_frequency')->group(function () {
-    Route::post('/add_lead', 'FetchLeadsController@add_ppc_lead')->name('lead_frequency.add_lead');
-    Route::get('/week_payment', 'FetchLeadsController@week_payment')->name('lead_frequency.week_payment');
-    Route::get('/monthly_payment', 'FetchLeadsController@monthly_payment')->name('lead_frequency.monthly_payment');
-    Route::get('/send_lead_on_discord/{leads_start_time}', 'FetchLeadsController@send_client_leads_on_discord')->name('lead_frequency.send_lead_on_discord');
-    Route::post('/send_que_leads', 'FetchLeadsController@send_que_leads')->name('lead_frequency.send_que_leads');
+    // Lead Frequency Routes
+    Route::prefix('lead_frequency')->as('lead_frequency.')->controller(FetchLeadsController::class)->group(function () {
+        Route::post('/add_lead', 'add_ppc_lead')->name('add_lead');
+        Route::get('/week_payment', 'week_payment')->name('week_payment');
+        Route::get('/monthly_payment', 'monthly_payment')->name('monthly_payment');
+        Route::get('/send_lead_on_discord/{leads_start_time}', 'send_client_leads_on_discord')->name('send_lead_on_discord');
+        Route::post('/send_que_leads', 'send_que_leads')->name('send_que_leads');
+        Route::post('/get_lead_form_website', 'get_lead_form_website')->name('get_lead_form_website');
+    });
+    
+    // Message Template Routes
+    Route::prefix('message_template')->controller(FetchLeadsController::class)->group(function () {
+        Route::get('/add_message_to_user', 'add_message_to_user')->name('add_message_to_user');
+        Route::get('/assign_template_to_clients', 'assign_template_to_clients')->name('assign_template_to_clients');
+    });
+    
+    // PayNow Webhook
+    Route::prefix('paynow-webhook')->controller(PayNowController::class)->group(function () {
+        Route::post('/', 'paynow_webhook')->name('api_paynow_webhook');
+    });
 
-    Route::post('/get_lead_form_website', 'FetchLeadsController@get_lead_form_website')->name('lead_frequency.get_lead_form_website');
-});
-
-
-Route::namespace('App\Http\Controllers\Api')->prefix('message_template')->group(function () {
-    Route::get('/add_message_to_user', 'FetchLeadsController@add_message_to_user')->name('add_message_to_user');
-    Route::get('assign_template_to_clients', 'FetchLeadsController@assign_template_to_clients')->name('assign_template_to_clients');
-});
-
-Route::post('/paynow-webhook', "App\Http\Controllers\Api\PayNowController@paynow_webhook")->name('api_paynow_webhook');
-
-Route::middleware(['XSS'])->namespace('App\Http\Controllers\Api')->group(function () {
-    Route::prefix('google_ads')->as('google_ads.')->controller('GoogleAdsController')->group(function () {
+    // Google Ads Routes
+    Route::prefix('google_ads')->as('google_ads.')->controller(GoogleAdsController::class)->group(function () {
         Route::get('/campaign', 'google_ads_campaign')->name('campaign');
         Route::get('/ad_group', 'google_ads_ad_group')->name('ad_group');
         Route::get('/ad_group_ad', 'google_ads_ad_group_ad')->name('ad_group_ad');
@@ -46,7 +51,8 @@ Route::middleware(['XSS'])->namespace('App\Http\Controllers\Api')->group(functio
         Route::get('/customer_id', 'google_ads_customer_id')->name('customer_id');
     });
 
-    Route::prefix('tour')->as('tour.')->controller('TourController')->group(function () {
+    // Tour Routes
+    Route::prefix('tour')->as('tour.')->controller(TourController::class)->group(function () {
         Route::post('/', 'store')->name('store');
     });
 });
