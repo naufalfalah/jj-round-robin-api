@@ -1,0 +1,55 @@
+body {
+    font-family: 'Product Sans', sans-serif;
+}
+
+.title {
+    font-weight: 500;
+}
+
+.sub-title {
+    font-size: 12px;
+}
+
+.counter {
+    font-size: 28px;
+    font-weight: 300;
+}
+
+.icon-custom-outline {
+    text-shadow: 
+        1px 1px 0 #000, 
+    -1px -1px 0 #000,  
+        1px -1px 0 #000,
+    -1px 1px 0 #000;
+}
+
+.data-table thead th,
+.odd td,
+.even td {
+    font-size: 12px;
+    background-color: white;
+    --bs-table-accent-bg: white !important;
+}
+
+#report-table tbody tr td {
+    font-size: 16px;
+}
+
+.dataTables_info {
+    font-size: 12px;
+}
+
+.dataTables_paginate ul li a {
+    font-size: 12px;
+}
+
+.dataTables_paginate ul li.active a {
+    background-color: #d3d3d3;
+    border-color: #d3d3d3;
+    color: black;
+}
+
+.small-chart div svg,
+.apexcharts-svg {
+    width: 100% !important;
+}
