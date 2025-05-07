@@ -1,0 +1,63 @@
+# Ignore project files & directories
+/node_modules
+/public/hot
+/public/storage
+/public/uploads
+/storage/*.key
+/vendor
+.env
+.env.backup
+.php-cs-fixer.cache
+.phpunit.result.cache
+docker-compose.override.yml
+npm-debug.log
+yarn-error.log
+
+# Ignore app files
+/public/client_secret.json
+/public/admin_client_secret.json
+/public/uploads/profile_images
+
+# Ignore IDE and editor files
+*.idea
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db
+
+# Ignore Homestead environment
+Homestead.json
+Homestead.yaml
+
+# Ignore dotenv file
+.phpunit.result.cache
+/.phpunit.result.cache
+/phpunit.xml
+
+# Ignore user-specific files
+*.sublime-workspace
+*.sublime-project
+*.komodoproject
+.komodotools
+.komodoide
+.phpstorm.meta.php
+
+# Ignore anything inside "temp" directories
+/temp/*
+
+# Ignore any cache or generated files
+/cache/*
+!/cache/.gitkeep
+/public/css/*
+!/public/css/.gitkeep
+/public/js/*
+!/public/js/.gitkeep
+/public/fonts/*
+!/public/fonts/.gitkeep
+/public/images/*
+!/public/images/.gitkeep
