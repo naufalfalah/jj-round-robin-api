@@ -24,6 +24,7 @@ if (!function_exists('get_date')) {
         return get_fulltime($date, 'D  d/m/Y');
     }
 }
+
 if (!function_exists('containsOnlyNull')) {
     function containsOnlyNull($input)
     {
@@ -198,7 +199,6 @@ if (!function_exists('ordinal')) {
         } else {
             return $number . $ends[$number % 10];
         }
-
     }
 
     if (!function_exists('getQuotientAndRemainder')) {
@@ -449,7 +449,6 @@ if (!function_exists('csvToArray')) {
                 } else {
                     $data[] = array_combine($header, $row);
                 }
-
             }
             fclose($handle);
         }
@@ -553,7 +552,7 @@ if (!function_exists('json_validator')) {
     {
         if (!empty($data)) {
             return is_string($data) &&
-            is_array(json_decode($data, true)) ? true : false;
+                is_array(json_decode($data, true)) ? true : false;
         }
         return false;
     }
@@ -584,7 +583,7 @@ if (!function_exists('priority')) {
 if (!function_exists('all_priority')) {
     function all_priority()
     {
-        $data = ['Urgent','High', 'Normal'];
+        $data = ['Urgent', 'High', 'Normal'];
 
         return $data;
     }
@@ -779,10 +778,10 @@ if (!function_exists('send_push_notification_to_admin')) {
     {
         $url = 'https://fcm.googleapis.com/fcm/send';
         $FcmToken = App\Models\UserDeviceToken::whereNotNull('device_token')
-        ->whereIn('user_id', $admins)
-        ->where('user_type', 'admin')
-        ->pluck('device_token')
-        ->all();
+            ->whereIn('user_id', $admins)
+            ->where('user_type', 'admin')
+            ->pluck('device_token')
+            ->all();
 
         $serverKey = config('services.firebase.service_key');
         $data = [
@@ -837,7 +836,6 @@ if (!function_exists('send_push_notification_to_admin')) {
             ]);
         }
     }
-
 }
 
 if (!function_exists('arrayHasEmptyValue')) {
@@ -1133,7 +1131,6 @@ if (!function_exists('format_number')) {
         $formatted_number = number_format($number / pow(1000, $suffix_index), 2) . $suffixes[$suffix_index];
         return $formatted_number;
     }
-
 }
 
 if (!function_exists('number_with_suffixes')) {
@@ -1151,7 +1148,7 @@ if (!function_exists('snake_to_sentence_case')) {
     function snake_to_sentence_case($string)
     {
         $title = str_replace('_', ' ', $string);
-        
+
         return ucwords(strtolower($title));
     }
 }

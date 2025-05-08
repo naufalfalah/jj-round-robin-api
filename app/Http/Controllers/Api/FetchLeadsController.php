@@ -6,29 +6,28 @@ use App\Http\Controllers\Controller;
 use App\Models\LeadClient;
 use App\Models\LeadData;
 use App\Models\Ads;
-use App\Models\WalletTopUp;
 use App\Models\AdsInvoice;
 use App\Models\ClientMessageTemplate;
 use App\Models\SubAccount;
 use App\Models\User;
 use App\Models\JunkLead;
-use App\Models\DailyAdsSpent;
-use App\Models\TaxCharge;
 use App\Models\Transections;
 use App\Traits\AdsSpentTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Traits\GoogleTrait;
-use Carbon\Carbon;
 use App\Models\WpMessageTemplate;
 use App\Models\ClientWallet;
 use App\Services\GoogleAdsService;
+use App\Traits\ApiResponseTrait;
 
 class FetchLeadsController extends Controller
 {
     use GoogleTrait, AdsSpentTrait;
+    use ApiResponseTrait;
 
-    function get_lead_form_website(Request $request, $que_lead = null){
+    function get_lead_form_website(Request $request, $que_lead = null)
+    {
         if ($que_lead == null) {
             $referer = $this->extractBaseUrlPattern($request->source_url);
             $username = $request->header('PHP_AUTH_USER');
@@ -43,15 +42,15 @@ class FetchLeadsController extends Controller
         }
 
         $check_referer_exist = Ads::where('website_url', $referer)->where('status', 'running')->first();
-        if ($check_referer_exist) { 
-            
+        if ($check_referer_exist) {
+
             $check_email_exist = LeadClient::where('client_id', $check_referer_exist->client_id)
-            ->where('ads_id', $check_referer_exist->id)
-            ->where(function($query) use ($request) {
-                $query->where('email', $request->email)
-                    ->orWhere('mobile_number', $request->mobile_number);
-            })
-            ->count();
+                ->where('ads_id', $check_referer_exist->id)
+                ->where(function ($query) use ($request) {
+                    $query->where('email', $request->email)
+                        ->orWhere('mobile_number', $request->mobile_number);
+                })
+                ->count();
             if ($check_email_exist > 0) {
                 $junk_lead = new JunkLead;
                 if ($que_lead == null) {
@@ -72,7 +71,7 @@ class FetchLeadsController extends Controller
                     'success' => true,
                     'msg' => 'This Is Junk Lead Save Successfully'
                 ]);
-            }else{
+            } else {
                 if ($que_lead == null) {
                     $leads = $request->all();
                 } else {
@@ -129,7 +128,7 @@ class FetchLeadsController extends Controller
                     }
 
                     if (isset($ads_lead->email) && !empty($ads_lead->email)) {
-$leadMessage = "New Lead Please take note!
+                        $leadMessage = "New Lead Please take note!
 ===========================
 Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
 - Name: {$ads_lead->name}
@@ -142,8 +141,8 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
 - Name: {$ads_lead->name}
 - Mobile Number: https://wa.me/+65{$ads_lead->mobile_number}";
                     }
-                    
-                    
+
+
                     if (!empty($request->additional_data) && count($request->additional_data) > 0) {
                         foreach ($request->additional_data as $val) {
                             if (is_array($val)) {
@@ -180,7 +179,6 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
                     'msg' => 'Lead Send Successfully'
                 ]);
             }
-       
         } else {
             $junk_lead = new JunkLead;
             $junk_lead->lead_data = json_encode($request);
@@ -195,9 +193,8 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
         }
     }
 
-
     function add_ppc_lead(Request $request, $que_lead = null)
-    { 
+    {
         if ($que_lead == null) {
             $referer = $this->extractBaseUrlPattern($request->source_url);
             $username = $request->header('PHP_AUTH_USER');
@@ -272,8 +269,7 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
                     'success' => true,
                     'msg' => 'This Is Junk Lead Save Successfully'
                 ]);
-            } 
-            else {
+            } else {
                 if ($que_lead == null) {
                     $leads = $request->all();
                 } else {
@@ -379,25 +375,24 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
 
                     $check_msg_status = WpMessageTemplate::first();
                     //whatsapp msg send code
-                    if ($check_msg_status->status === 'active'){
+                    if ($check_msg_status->status === 'active') {
 
-                        if($request->status != 'DNC Registry'){
+                        if ($request->status != 'DNC Registry') {
                             if ($request->mobile_number && !empty($request->mobile_number)) {
-                                    $get_message = ClientMessageTemplate::where('client_id',$adsList->client_id)->first();
+                                $get_message = ClientMessageTemplate::where('client_id', $adsList->client_id)->first();
                                 if ($get_message) {
-                                    $replece_name = str_replace('@clientName',$ads_lead->name,$get_message->message_template);
-                                    $replece_email = str_replace('@email',$ads_lead->email,$replece_name);
-                                    $replece_phone = str_replace('@phone',$ads_lead->mobile_number,$replece_email);
+                                    $replece_name = str_replace('@clientName', $ads_lead->name, $get_message->message_template);
+                                    $replece_email = str_replace('@email', $ads_lead->email, $replece_name);
+                                    $replece_phone = str_replace('@phone', $ads_lead->mobile_number, $replece_email);
 
                                     $send_message = $this->send_wp_message($request->mobile_number, $replece_phone);
                                 } else {
                                     $get_message = WpMessageTemplate::first();
-                                    $replece_name = str_replace('@clientName',$ads_lead->name,$get_message->wp_message);
-                                    $replece_email = str_replace('@email',$ads_lead->email,$replece_name);
-                                    $replece_phone = str_replace('@phone',$ads_lead->mobile_number,$replece_email);
+                                    $replece_name = str_replace('@clientName', $ads_lead->name, $get_message->wp_message);
+                                    $replece_email = str_replace('@email', $ads_lead->email, $replece_name);
+                                    $replece_phone = str_replace('@phone', $ads_lead->mobile_number, $replece_email);
 
                                     $send_message = $this->send_wp_message($request->mobile_number, $replece_phone);
-
                                 }
                             }
                         }
@@ -495,26 +490,26 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
     {
         $googleAdsService = new GoogleAdsService();
         $ads = Ads::whereIn('status', ['running', 'pause'])->get();
-        
+
         foreach ($ads as $ad) {
             $checkAdsInvoice = AdsInvoice::where('ads_id', $ad->id)->first();
             if ($checkAdsInvoice) {
                 continue;
             }
-            
+
             // Monthly payment
             $monthly_payment = $this->monthly_client_payment($ad->client_id, $ad->id);
-            
-            // Fetch 1 Topups of client that FeeFlag = False            
+
+            // Fetch 1 Topups of client that FeeFlag = False
             $topupFee = 0;
-            
+
             // Check sub wallet
             $topups = Transections::where('ads_id', $ad->id)
                 ->where('fee_flag', 0)
                 ->whereIn('topup_type', ['stripe'])
                 ->where('status', 'completed')
                 ->get();
-            
+
             if ($topups->isEmpty()) {
                 // Change to main wallet
                 $topups = ClientWallet::where('client_id', $ad->client_id)
@@ -524,11 +519,11 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
                     ->limit(1)
                     ->get();
             }
-            
+
             if ($topups->isNotEmpty()) {
                 foreach ($topups as $topup) {
                     if ($topup->topup_type == 'stripe') {
-                        $topupFee = round($topup->amount_in * ( 3.9 / 100) + 0.60);
+                        $topupFee = round($topup->amount_in * (3.9 / 100) + 0.60);
                     }
                 }
                 $topup->transaction_fee = $topupFee;
@@ -566,7 +561,7 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
             $add_transaction->topup_type = 'invoice_payment';
             $add_transaction->ads_id = $ad->id;
             $add_transaction->save();
-            
+
             $ad->spend_amount = $available_balance;
             $ad->save();
 
@@ -588,7 +583,7 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
                         $updateRequestBody = [
                             'status' => 'PAUSED'
                         ];
-                        
+
                         $googleAdsService->updateCampaign($customerId, $campaignResourceName, $updateRequestBody);
                     }
                 }
@@ -657,10 +652,8 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
         return $adsList;
     }
 
-
     function send_client_leads_on_discord($leads_start_time)
     {
-
         $get_leads = LeadClient::with('lead_data', 'clients')
             ->where('lead_type', 'ppc')->where('is_send_discord', '0')
             ->where('created_at', '>', $leads_start_time)
@@ -699,12 +692,8 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
         }
     }
 
-
-
-
     public function send_que_leads()
     {
-
         $check_running_ads = Ads::where('status', 'running')->count();
         if ($check_running_ads == 0) {
             return response()->json([
@@ -761,6 +750,9 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
     private function extractBaseUrlPattern($url)
     {
         $parsedUrl = parse_url($url);
+        if (!isset($parsedUrl) || !isset($parsedUrl['scheme'])) {
+            return $this->sendErrorResponse('Sceme is required', 400);
+        }
         return $parsedUrl['scheme'] . '://' . $parsedUrl['host'] . '/';
     }
 
@@ -799,10 +791,8 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
         return $response;
     }
 
-
     public function add_message_to_user(Request $request)
     {
-
         $get_clients = User::all();
 
         $get_message = ClientMessageTemplate::first();
@@ -826,7 +816,6 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
             return response()->json(['message' => 'No message template found.'], 404);
         }
     }
-
 
     private function verifySalesperson($mobileNumber)
     {
@@ -855,10 +844,8 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
         return json_decode($response);
     }
 
-
     public function assign_template_to_clients()
     {
-
         $adminTemplate = WpMessageTemplate::latest()->first();
 
         if (!$adminTemplate) {
@@ -884,10 +871,10 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
             ];
         }
         $client_message_template = ClientMessageTemplate::insert($clientTemplates);
-        if ($client_message_template) {
-            return response()->json(['message' => 'Messages assigned to all users successfully.']);
-        } else {
+        if (!$client_message_template) {
             return response()->json(['error' => 'Failed to assign admin message template: '], 500);
         }
+
+        return response()->json(['message' => 'Messages assigned to all users successfully.']);
     }
 }
