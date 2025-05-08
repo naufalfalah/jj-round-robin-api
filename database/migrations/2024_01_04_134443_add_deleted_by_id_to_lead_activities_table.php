@@ -17,7 +17,6 @@ return new class extends Migration
             $table->enum('user_type', ['admin', 'user'])->nullable()->default('user')->after('added_by_id');
             $table->enum('delete_by_type', ['user', 'admin'])->nullable()->after('user_type');
             $table->integer('delete_by_id')->nullable()->after('delete_by_type');
-            $table->softDeletes()->after('delete_by_id');
         });
     }
 

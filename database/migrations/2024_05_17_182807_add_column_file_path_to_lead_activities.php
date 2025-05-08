@@ -15,9 +15,7 @@ return new class extends Migration
     {
         Schema::table('lead_activities', function (Blueprint $table) {
             $table->integer('file_id')->nullable()->after('email_template_id');
-            $table->dateTime('last_open')->nullable()->after('file_id');
             $table->string('total_views', 191)->default(0)->after('last_open');
-            $table->text('activity_url')->nullable()->after('total_views');
         });
     }
 
