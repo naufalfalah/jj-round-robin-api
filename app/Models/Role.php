@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Role extends Model
 {
-    use HasFactory, SoftDeletes, DianujHashidsTrait;
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
 
     protected $casts = ['user_permissions' => 'object'];
 }

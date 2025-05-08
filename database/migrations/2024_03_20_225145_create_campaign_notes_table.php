@@ -16,9 +16,9 @@ return new class extends Migration
         Schema::create('campaign_notes', function (Blueprint $table) {
             $table->id();
             $table->date('note_date');
-            $table->string("campaign_name", 255);
-            $table->text("note")->nullable();
-            $table->text("ads_report")->nullable();
+            $table->string('campaign_name', 255);
+            $table->text('note')->nullable();
+            $table->text('ads_report')->nullable();
             $table->timestamps();
         });
     }

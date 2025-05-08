@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('permission_types', function (Blueprint $table) {
             $table->id();
-            $table->string('permission_type',191);
+            $table->string('permission_type', 191);
             $table->text('description')->nullable();
             $table->timestamps();
             $table->softDeletes();

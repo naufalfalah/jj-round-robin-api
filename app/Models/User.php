@@ -2,18 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use App\Traits\DianujHashidsTrait;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
 {
-    use HasApiTokens, HasFactory, DianujHashidsTrait, SoftDeletes;
+    use DianujHashidsTrait, HasApiTokens, HasFactory, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -33,9 +31,11 @@ class User extends Authenticatable implements JWTSubject
         'password',
         'google_account_id',
         'customer_id',
+        'calendar_id',
+        'provider',
+        'provider_id',
     ];
 
-    
     public function Agencices()
     {
         return $this->belongsTo(Agency::class, 'agency_id');
@@ -67,7 +67,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function getFullNameAttribute()
     {
-        return ucwords($this->agency . '-' . $this->client_name);
+        return ucwords($this->agency.'-'.$this->client_name);
     }
 
     public function getJWTIdentifier()
@@ -95,8 +95,51 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsTo(SubAccount::class, 'sub_account_id', 'id');
     }
 
+    public function sub_accounts()
+    {
+        return $this->belongsToMany(UserSubAccount::class, 'user_id', 'sub_account_id');
+    }
+
     public function google_account()
     {
         return $this->hasOne(GoogleAccount::class, 'id');
+    }
+
+    // public function leads()
+    // {
+    //     return $this->hasMany(LeadClient::class, 'client_id', 'id');
+    // }
+
+    public function leads()
+    {
+        return $this->hasMany(LeadClient::class, 'client_id', 'id'); // 'client_id' in LeadClient matches 'id' in User
+    }
+
+    public function getAccessibleMenus()
+    {
+        return $this->userSubAccounts()
+            ->with('package.menus')
+            ->get()
+            ->flatMap(function ($userSubAccount) {
+                return $userSubAccount->package->getMenus() ?? [];
+            })
+            ->unique()
+            ->values()
+            ->toArray();
+    }
+
+    public function userSubAccounts()
+    {
+        return $this->hasMany(UserSubAccount::class, 'client_id');
+    }
+
+    public function socialMedias()
+    {
+        return $this->hasMany(UserSocialMedia::class, 'client_id', 'id');
+    }
+
+    public function getSocialMediaByProvider($provider)
+    {
+        return $this->socialMedias()->where('provider', $provider)->first();
     }
 }

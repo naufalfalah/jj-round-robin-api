@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\DianujHashidsTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\DianujHashidsTrait;
 
 class SubAccount extends Model
 {
-    use HasFactory, DianujHashidsTrait;
+    use DianujHashidsTrait, HasFactory;
+
+    protected $fillable = [
+        'sub_account_name',
+        'sub_account_url',
+    ];
 }

@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('domain_name')->nullable();
             $table->string('website_url')->nullable();
             $table->text('type')->nullable();
-            $table->enum('status', ['pending', 'running', 'pause', 'reject', 'complete','close'])->default('pending');
+            $table->enum('status', ['pending', 'running', 'pause', 'reject', 'complete', 'close'])->default('pending');
             $table->boolean('lead_status')->default(false);
             $table->double('spend_amount')->nullable();
             $table->softDeletes();

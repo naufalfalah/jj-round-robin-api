@@ -16,8 +16,8 @@ return new class extends Migration
         Schema::create('form_requests', function (Blueprint $table) {
             $table->id();
             $table->integer('client_id');
-            $table->string('title',191);
-            $table->string('task_id',191)->nullable();
+            $table->string('title', 191);
+            $table->string('task_id', 191)->nullable();
             $table->smallInteger('priority')->default(3)->nullable();
             $table->timestamps();
         });

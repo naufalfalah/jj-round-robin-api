@@ -14,9 +14,9 @@ return new class extends Migration
     public function up()
     {
         Schema::table('transections', function (Blueprint $table) {
-            $table->string('transaction_id',255)->nullable()->after('client_id');
+            $table->string('transaction_id', 255)->nullable()->after('client_id');
             $table->longText('data')->nullable()->after('ads_id');
-            $table->enum('status', ['processing', 'completed','canceled','declined'])->default('processing')->after('data');
+            $table->enum('status', ['processing', 'completed', 'canceled', 'declined'])->default('processing')->after('data');
         });
     }
 

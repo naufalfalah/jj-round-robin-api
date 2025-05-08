@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
-use App\Permissions\HasPermissionsTrait;
 use App\Traits\DianujHashidsTrait;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\HasPermissionsTrait;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class Admin extends Authenticatable
@@ -19,7 +18,7 @@ class Admin extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'email', 'password', 'first_name', 'last_name','image', 'user_type', 'google_access_token'
+        'email', 'password', 'first_name', 'last_name', 'image', 'user_type', 'google_access_token',
     ];
 
     /**
@@ -51,5 +50,10 @@ class Admin extends Authenticatable
     public function role()
     {
         return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    public function get_times()
+    {
+        return $this->hasMany(TimeTracking::class, 'user_id', 'id');
     }
 }

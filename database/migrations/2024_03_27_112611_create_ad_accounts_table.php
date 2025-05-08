@@ -15,8 +15,8 @@ return new class extends Migration
     {
         Schema::create('ad_accounts', function (Blueprint $table) {
             $table->id();
-            $table->string("act_name", 255);
-            $table->string("act_id", 255);
+            $table->string('act_name', 255);
+            $table->string('act_id', 255);
             $table->timestamps();
         });
     }

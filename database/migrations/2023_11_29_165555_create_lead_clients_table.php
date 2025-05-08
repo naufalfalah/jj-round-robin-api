@@ -21,12 +21,12 @@ return new class extends Migration
             $table->string('email')->nullable();
             $table->string('mobile_number')->nullable();
             $table->text('note')->nullable();
-            $table->enum('status',['new_lead', 'spam', 'junk', 'clear', 'unmarked'])->default('unmarked');
+            $table->enum('status', ['new_lead', 'spam', 'junk', 'clear', 'unmarked', 'uncontacted', 'contacted'])->default('unmarked');
             $table->string('follow_up_date_time')->nullable();
             $table->tinyInteger('is_send_discord')->nullable();
             $table->tinyInteger('is_verified')->nullable();
-            $table->enum('user_status',['normal', 'agent'])->default('normal');
-            $table->string('registration_no',255)->nullable();
+            $table->enum('user_status', ['normal', 'agent'])->default('normal');
+            $table->string('registration_no', 255)->nullable();
             $table->integer('added_by_id');
             $table->timestamps();
         });

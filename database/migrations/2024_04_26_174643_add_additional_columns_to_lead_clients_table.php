@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::table('lead_clients', function (Blueprint $table) {
             //
-            $table->enum('admin_status',['Contacted', 'Appointment set', 'Burst', 'call Back', 'Follow Up'])->default('Contacted');
+            $table->enum('admin_status', ['Contacted', 'Appointment set', 'Burst', 'call Back', 'Follow Up'])->default('Contacted');
 
         });
     }

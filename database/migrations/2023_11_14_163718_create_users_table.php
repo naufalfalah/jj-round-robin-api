@@ -25,8 +25,8 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
             $table->rememberToken();
-            $table->string('provider_id',191)->nullable();
-            $table->string('provider_name',50)->nullable();
+            $table->string('provider_id', 191)->nullable();
+            $table->string('provider_name', 50)->nullable();
             $table->text('google_access_token')->nullable();
             $table->timestamps();
             $table->softDeletes();

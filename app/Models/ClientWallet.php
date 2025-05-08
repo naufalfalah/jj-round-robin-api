@@ -9,9 +9,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClientWallet extends Model
 {
-    use HasFactory,SoftDeletes,DianujHashidsTrait;
-    
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
+
     protected $guarded = [];
+
+    protected $fillable = [
+        'status',
+    ];
 
     public function ads()
     {

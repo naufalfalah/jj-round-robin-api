@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\DianujHashidsTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\DianujHashidsTrait;
 
 class WpMessageTemplate extends Model
 {
-    use HasFactory, DianujHashidsTrait;
+    use DianujHashidsTrait, HasFactory;
 
     protected $fillable = [
         'id',

@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('paynow_requests', function (Blueprint $table) {
             $table->id();
-            $table->string('request_id',255);
+            $table->string('request_id', 255);
             $table->longText('data');
             $table->enum('status', ['pending', 'completed'])->default('pending');
             $table->timestamps();

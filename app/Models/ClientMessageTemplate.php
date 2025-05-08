@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClientMessageTemplate extends Model
 {
-    use HasFactory, SoftDeletes, DianujHashidsTrait;
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
+
     protected $guarded = [];
 }

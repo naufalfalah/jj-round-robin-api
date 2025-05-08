@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaynowRequests extends Model
 {
-    use HasFactory, SoftDeletes, DianujHashidsTrait;
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
 
     protected $casts = ['data' => 'object'];
 }

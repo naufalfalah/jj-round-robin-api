@@ -1,0 +1,18 @@
+<?php
+
+namespace App\Models;
+
+use App\Traits\DianujHashidsTrait;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class DesignerImage extends Model
+{
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
+
+    protected $fillable = [
+        'designer_id',
+        'image_path',
+    ];
+}

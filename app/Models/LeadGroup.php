@@ -9,12 +9,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LeadGroup extends Model
 {
-    use HasFactory, DianujHashidsTrait, SoftDeletes;
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
 
     protected $guarded = [];
 
     public function group()
     {
         return $this->belongsTo(Group::class, 'group_id');
+    }
+
+    public function lead()
+    {
+        return $this->belongsTo(LeadClient::class, 'lead_id', 'id');
     }
 }

@@ -19,7 +19,7 @@ class CreateAdminsTable extends Migration
             $table->string('username')->unique();
             $table->string('email')->unique();
             $table->text('image')->nullable();
-            $table->enum('user_type', ['admin','normal'])->default('normal');
+            $table->enum('user_type', ['admin', 'normal'])->default('normal');
             $table->text('user_permissions')->nullable();
             $table->string('password');
             $table->boolean('is_active')->default('1');

@@ -2,17 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\DianujHashidsTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\DianujHashidsTrait;
 
 class Ads extends Model
 {
-    use HasFactory, SoftDeletes, DianujHashidsTrait;
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
 
     protected $table = 'ads';
-    
+
     protected $fillable = [
         'client_id',
         'adds_title',
@@ -22,10 +22,7 @@ class Ads extends Model
         'lead_status',
         'daily_budget',
         'spend_amount',
-        'topup_fee',
         'e_wallet',
-        'google_account_id',
-        'customer_id',
     ];
 
     public function client()
@@ -35,11 +32,6 @@ class Ads extends Model
 
     public function google_ad()
     {
-        return $this->hasOne(GoogleAdsAd::class, 'ad_request_id');
-    }
-
-    public function google_account()
-    {
-        return $this->hasOne(GoogleAccount::class, 'id', 'google_account_id');
+        return $this->hasOne(GoogleAd::class, 'ad_request_id');
     }
 }

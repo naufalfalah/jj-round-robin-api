@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Models\ApiLog;
 use Illuminate\Http\JsonResponse;
 
 trait ApiResponseTrait
@@ -14,13 +15,25 @@ trait ApiResponseTrait
      * @param int $status
      * @return JsonResponse
      */
-    protected function sendSuccessResponse($message = 'Success', $data = [], $status = 200)
+    protected function sendSuccessResponse($message = 'Success', $data = [], $statusCode = 200)
     {
-        return response()->json([
+        $currentRoute = request()->route()->getName() ?? request()->path();
+        $clientId = auth('api')->user()->id ?? null;
+
+        $response = response()->json([
             'status' => 'Success',
             'message' => $message,
             'data' => $data,
-        ], $status);
+        ], $statusCode);
+
+        ApiLog::create([
+            'route' => $currentRoute,
+            'client_id' => $clientId,
+            'status_code' => $statusCode,
+            'response' => json_encode($response),
+        ]);
+
+        return $response;
     }
 
     /**
@@ -33,10 +46,22 @@ trait ApiResponseTrait
      */
     protected function sendErrorResponse($message, $statusCode = 400)
     {
-        return response()->json([
+        $currentRoute = request()->route()->getName() ?? request()->path();
+        $clientId = auth('api')->user()->id ?? null;
+
+        $response = response()->json([
             'status' => 'Error',
             'message' => $message,
         ], $statusCode);
+
+        ApiLog::create([
+            'route' => $currentRoute,
+            'client_id' => $clientId,
+            'status_code' => $statusCode,
+            'response' => json_encode($response),
+        ]);
+
+        return $response;
     }
 
     /**

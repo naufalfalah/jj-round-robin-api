@@ -15,11 +15,11 @@ return new class extends Migration
     {
         Schema::create('agent_details', function (Blueprint $table) {
             $table->id();
-            $table->string('salesperson_name',255);
+            $table->string('salesperson_name', 255);
             $table->double('registration_no');
             $table->date('registration_start_date');
             $table->date('registration_end_date');
-            $table->string('estate_agent_name',255);
+            $table->string('estate_agent_name', 255);
             $table->double('estate_agent_license_no');
             $table->timestamps();
             $table->softDeletes();

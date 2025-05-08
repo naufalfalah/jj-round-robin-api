@@ -14,7 +14,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('client_wallets', function (Blueprint $table) {
-            $table->enum('status', ['processing', 'completed','canceled','declined'])->default('processing')->after('data');
+            $table->enum('status', ['processing', 'completed', 'canceled', 'declined'])->default('processing')->after('data');
         });
     }
 

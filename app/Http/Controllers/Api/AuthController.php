@@ -2,132 +2,70 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\ActivityLogHelper;
 use App\Http\Controllers\Controller;
-use App\Models\ClientFolder;
+use App\Http\Requests\LoginRequest;
 use App\Models\User;
 use App\Models\UserDeviceToken;
 use App\Traits\ApiResponseTrait;
 use App\Traits\GoogleTrait;
+use App\Traits\PackageTrait;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 
+/**
+ * @group Authentication
+ */
 class AuthController extends Controller
 {
     use ApiResponseTrait;
-    /**
-     * Get a JWT via given credentials.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
     use GoogleTrait;
+    use PackageTrait;
 
-    public function login(Request $request)
+    /**
+     * Login
+     */
+    public function login(LoginRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'password' => 'required|string|min:6',
-        ]);
+        $credentials = $request->validated();
+        $email = $credentials['email'];
 
-        if ($validator->fails()) {
-            $errors = $validator->errors();
+        if (!$token = Auth::guard('api')->attempt($credentials)) {
+            ActivityLogHelper::save_activity(null, "Failed Login Attempt [$email]", 'Auth', 'app');
 
-            $errorMessages = [];
-            foreach ($errors->all() as $message) {
-                $errorMessages[] = $message;
-            }
-
-            return $this->sendErrorResponse(implode("\n ", $errorMessages), 400);
+            return $this->sendErrorResponse('User not found. Please register with your email.', 401);
         }
 
-        if (! $token = auth('api')->attempt($validator->validated())) {
-            return $this->sendErrorResponse('User Is Not Found In My Record. Please Register With Your Email', 401);
+        $user = Auth::guard('api')->user();
+
+        if (is_null($user->email_verified_at)) {
+            Auth::guard('api')->logout();
+
+            ActivityLogHelper::save_activity($user->id, "Login Attempt by Unverified User [$email]", 'Auth', 'app');
+
+            return $this->sendErrorResponse('User is not verified. Please verify with your OTP first.', 401);
         }
 
-        $message = "User Login Successfully";
-        return $this->createNewToken($token, $message);
+        ActivityLogHelper::save_activity($user->id, 'User Login', 'Auth', 'app');
+
+        $data = $this->createNewToken($token);
+
+        ActivityLogHelper::save_activity($user->id, 'Token Created', 'Auth', 'app');
+
+        return $this->sendSuccessResponse('User login successfully.', $data);
     }
 
     /**
-     * Register a User.
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * Logout (Invalidate the token).
      */
-
-    public function register(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'client_name' => 'required|string|max:50',
-            'email' => 'required|string|email|max:255|unique:users',
-            'phone_number' => 'required|numeric|unique:users',
-            // 'agency' => 'required|string|unique:users',
-            'agency' => 'required|integer',
-            'password' => 'required|string|confirmed|min:8|max:12|regex:/^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]+$/',
-        ], ['password.regex' => 'Invalid Format. Password should be 8 characters, with at least 1 number and special characters.',]);
-
-        if ($validator->fails()) {
-            $errors = $validator->errors();
-            $errorMessages = [];
-            // $errorMessages = [];
-            foreach ($errors->all() as $message) {
-                $errorMessages[] = $message;
-            }
-
-            return $this->sendErrorResponse(implode("\n ", $errorMessages), 400);
-        }
-
-        DB::beginTransaction();
-        try {
-            $create_user = new User;
-            $create_user->client_name = $request->client_name;
-            $create_user->email = $request->email;
-            $create_user->phone_number  = $request->phone_number;
-            $create_user->agency_id = $request->agency;
-            // $create_user->industry_id = $request->industry;
-            $create_user->password = bcrypt($request->password);
-
-            // $folder_name = $create_user->agency.'-'.$create_user->client_name;
-            $folder_name = $create_user->client_name . '-' . $create_user->email;
-            $create_user->save();
-
-
-            $client_folder = new ClientFolder;
-            $client_folder->client_id = $create_user->id;
-            // $client_folder->folder_name = $folder_name;
-            $client_folder->folder_name = $create_user->client_name . '-' . $create_user->id;
-            $client_folder->save();
-
-            $create_user->save();
-
-            $token = auth('api')->attempt(['email' => $create_user->email, 'password' => $request->password]);
-
-            $data = [
-                'user' => [
-                    'id' => $create_user->id,
-                    'client_name' => $create_user->client_name,
-                    'email' => $create_user->email,
-                    'phone_number' => $create_user->phone_number,
-                    'updated_at' => $create_user->updated_at,
-                    'created_at' => $create_user->created_at,
-                ],
-                'token' => $token,
-            ];
-            DB::commit();
-            return $this->sendSuccessResponse('User successfully registered', $data);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Registration Failed: ' . $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Log the user out (Invalidate the token).
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
         if (isset($request->device_token) && !empty($request->device_token)) {
             $check_device_token = UserDeviceToken::where('device_token', $request->device_token)->where('user_id', auth('api')->id())->first();
@@ -135,21 +73,21 @@ class AuthController extends Controller
                 $check_device_token->delete();
             }
         }
+        $user_id = auth('api')->id();
 
+        ActivityLogHelper::save_activity($user_id, 'User Logout', 'Auth', 'app');
         auth('api')->logout();
 
         return $this->sendSuccessResponse('User successfully signed out');
     }
 
     /**
-     * Refresh a token.
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * Refresh a token
      */
-    public function refresh()
+    public function refresh(): JsonResponse
     {
         try {
-            $message = "JWT Token Refresh Successfully";
+            $message = 'JWT Token Refresh Successfully';
 
             $data = [
                 'token_type' => 'bearer',
@@ -157,28 +95,34 @@ class AuthController extends Controller
                 'token' => auth('api')->refresh(),
             ];
 
+            $user_id = auth('api')->id();
+            ActivityLogHelper::save_activity($user_id, 'Token Refreshed', 'Auth', 'app');
+
             return $this->sendSuccessResponse($message, $data);
         } catch (TokenExpiredException $e) {
+            ActivityLogHelper::save_activity(null, 'Token Refresh Failed', 'Auth', 'app');
+
             return response()->json(['status' => 'Error', 'message' => 'Token Is Expired', 'need_refresh_token' => true], 403);
         } catch (TokenInvalidException $e) {
+            ActivityLogHelper::save_activity(null, 'Token Refresh Failed', 'Auth', 'app');
+
             return response()->json(['status' => 'Error', 'message' => 'Token Is Invalid'], 403);
         } catch (JWTException $e) {
+            ActivityLogHelper::save_activity(null, 'Token Refresh Failed', 'Auth', 'app');
+
             return response()->json(['status' => 'Error', 'message' => 'Token could not be refreshed'], 403);
         }
     }
 
     /**
      * Get the token array structure.
-     *
-     * @param  string $token
-     *
-     * @return \Illuminate\Http\JsonResponse
      */
-    protected function createNewToken($token, $message)
+    protected function createNewToken(string $token): array
     {
         $user = auth('api')->user();
         $industry = '';
         $agency = '';
+
         if (!empty($user->user_industry->industries)) {
             $industry = $user->user_industry->industries;
         }
@@ -197,8 +141,8 @@ class AuthController extends Controller
                 'agency_id' => $user->agency_id,
                 'package' => $user->package,
                 'industry_id' => $user->industry_id,
-                'industry'  => $industry,
-                'image'  => $user->image,
+                'industry' => $industry,
+                'image' => $user->image,
                 'updated_at' => $user->updated_at,
                 'created_at' => $user->created_at,
             ],
@@ -207,6 +151,80 @@ class AuthController extends Controller
             'token' => $token,
         ];
 
-        return $this->sendSuccessResponse($message, $data);
+        return $data;
+    }
+
+    /**
+     * Redirect to Google login
+     */
+    public function redirectToGoogle()
+    {
+        return $this->sendSuccessResponse('Redirect to Google', [
+            'url' => Socialite::driver('google')->redirectUrl('google'),
+        ]);
+    }
+
+    /**
+     * Handle Google callback
+     */
+    public function handleGoogleCallback()
+    {
+        try {
+            $googleUser = Socialite::driver('google')->stateless()->user();
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to login with Google'], 400);
+        }
+
+        $user = User::firstOrCreate(
+            ['email' => $googleUser->getEmail()],
+            ['name' => $googleUser->getName(), 'password' => Hash::make(Str::random(16))]
+        );
+
+        Auth::login($user);
+
+        // Generate token for the user
+        $token = $user->createToken('MobileApp')->accessToken;
+
+        return $this->sendSuccessResponse('Login from Google success', [
+            'token' => $token,
+            'user' => $user,
+        ]);
+    }
+
+    /**
+     * Redirect to Facebook login
+     */
+    public function redirectToFacebook()
+    {
+        return $this->sendSuccessResponse('Redirect to Facebook', [
+            'url' => Socialite::driver('facebook')->redirectUrl('facebook'),
+        ]);
+    }
+
+    /**
+     * Handle Facebook callback
+     */
+    public function handleFacebookCallback()
+    {
+        try {
+            $facebookUser = Socialite::driver('facebook')->stateless()->user();
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to login with Facebook'], 400);
+        }
+
+        $user = User::firstOrCreate(
+            ['email' => $facebookUser->getEmail()],
+            ['name' => $facebookUser->getName(), 'password' => Hash::make(Str::random(16))]
+        );
+
+        Auth::login($user);
+
+        // Generate token for the user
+        $token = $user->createToken('MobileApp')->accessToken;
+
+        return $this->sendSuccessResponse('Login from Facebook success', [
+            'token' => $token,
+            'user' => $user,
+        ]);
     }
 }

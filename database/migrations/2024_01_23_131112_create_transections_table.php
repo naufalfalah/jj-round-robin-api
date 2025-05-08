@@ -19,7 +19,7 @@ return new class extends Migration
             $table->double('amount_in')->nullable();
             $table->double('amount_out')->nullable();
             $table->integer('topup_id')->nullable();
-            $table->enum('topup_type', ['add_from_main_wallet', 'back_to_main_wallet','invoice_payment','stripe','paynow','transfer_to_subwallet','transfer_from_subwallet','hosting_payment','domain_payment','closed_and_back_to_main_wallet'])->default('add_from_main_wallet');
+            $table->enum('topup_type', ['add_from_main_wallet', 'back_to_main_wallet', 'invoice_payment', 'stripe', 'paynow', 'transfer_to_subwallet', 'transfer_from_subwallet', 'hosting_payment', 'domain_payment', 'closed_and_back_to_main_wallet'])->default('add_from_main_wallet');
             $table->integer('ads_id')->nullable();
             $table->softDeletes();
             $table->timestamps();

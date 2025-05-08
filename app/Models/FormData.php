@@ -8,5 +8,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class FormData extends Model
 {
-    use HasFactory, DianujHashidsTrait;
+    use DianujHashidsTrait, HasFactory;
 }

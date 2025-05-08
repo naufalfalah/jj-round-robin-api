@@ -14,7 +14,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('ads', function (Blueprint $table) {
-            $table->enum('domain_is', ['i_have_my_own_domain','request_to_purchase'])->nullable()->after('spend_amount');
+            $table->enum('domain_is', ['i_have_my_own_domain', 'request_to_purchase'])->nullable()->after('spend_amount');
         });
     }
 

@@ -2,11 +2,20 @@
 
 namespace App\Models;
 
+use App\Traits\DianujHashidsTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\DianujHashidsTrait;
 
 class JunkLead extends Model
 {
-    use HasFactory, DianujHashidsTrait;
+    protected $table = 'junk_leads';
+
+    protected $fillable = [
+        'lead_data',
+        'status',
+        'created_at',
+        'updated_at',
+    ];
+
+    use DianujHashidsTrait, HasFactory;
 }

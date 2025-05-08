@@ -10,22 +10,25 @@ trait DianujHashidsTrait
     {
         return hashids_encode($this->getKey());
     }
-    
+
     public function scopeWhereHashid(Builder $query, $id)
     {
         $id = hashids_decode($id);
+
         return $query->where('id', $id);
     }
 
     public function scopeHashidFind(Builder $query, $id)
     {
         $id = hashids_decode($id);
+
         return $query->find($id);
     }
 
     public function scopeHashIdOrFail(Builder $query, $id)
     {
         $id = hashids_decode($id);
+
         return $query->findOrFail($id);
     }
 
@@ -34,7 +37,7 @@ trait DianujHashidsTrait
         $ids = array_map(function ($id) {
             return hashids_decode($id);
         }, $ids);
+
         return $query->whereIn('id', $ids);
     }
-
 }

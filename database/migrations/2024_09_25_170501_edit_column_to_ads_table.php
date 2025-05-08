@@ -12,7 +12,6 @@ return new class extends Migration
      */
     public function up()
     {
-        // Menggunakan raw SQL untuk memodifikasi enum
         DB::statement("ALTER TABLE `ads` MODIFY `status` ENUM('pending', 'running', 'pause', 'reject', 'complete', 'inactive', 'test') NOT NULL DEFAULT 'pending'");
     }
 
@@ -23,7 +22,6 @@ return new class extends Migration
      */
     public function down()
     {
-        // Mengembalikan enum ke nilai sebelumnya
         DB::statement("ALTER TABLE `ads` MODIFY `status` ENUM('pending', 'running', 'pause', 'reject', 'complete', 'inactive') NOT NULL DEFAULT 'pending'");
     }
 };

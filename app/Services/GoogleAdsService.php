@@ -168,17 +168,11 @@ class GoogleAdsService
         return $response['results'][0]['resourceName'];
     }
 
-    public function getCampaigns($customerId, $startDate = null, $endDate = null)
+    public function getCampaigns($customerId)
     {
-        $query = "SELECT campaign.id, campaign.name, campaign.start_date, campaign.end_date, campaign.target_roas.target_roas, campaign_budget.amount_micros, campaign.status, metrics.clicks, metrics.impressions, metrics.ctr, metrics.conversions, metrics.cost_micros FROM campaign WHERE campaign.status != 'REMOVED'";
-
-        if ($startDate && $endDate) {
-            $query .= " AND segments.date BETWEEN '$startDate' AND '$endDate'";
-        }
-        
         $response = $this->handleRequest('post', "$this->baseUrl/customers/$customerId/googleAds:search", [
             'json' => [
-                'query' => $query
+                'query' => "SELECT campaign.id, campaign.name, campaign.start_date, campaign.end_date, campaign.target_roas.target_roas, campaign_budget.amount_micros, campaign.status, metrics.clicks, metrics.impressions, metrics.ctr, metrics.conversions, metrics.cost_micros FROM campaign WHERE campaign.status != 'REMOVED'"
             ]
         ]);
 
@@ -363,17 +357,11 @@ class GoogleAdsService
         return $response['results'][0]['resourceName'];
     }
 
-    public function getAdGroups($customerId, $startDate = null, $endDate = null)
+    public function getAdGroups($customerId)
     {
-        $query = "SELECT campaign.id, campaign.name, ad_group.id, ad_group.name, ad_group.status, metrics.impressions, metrics.clicks, metrics.ctr, metrics.cost_micros, metrics.conversions FROM ad_group WHERE ad_group.status != 'PAUSED'";
-
-        if ($startDate && $endDate) {
-            $query .= " AND segments.date BETWEEN '$startDate' AND '$endDate'";
-        }
-
         $response = $this->handleRequest('post', "$this->baseUrl/customers/$customerId/googleAds:search", [
             'json' => [
-                'query' => $query
+                'query' => "SELECT ad_group.id, ad_group.name, ad_group.status, campaign.id, campaign.name, metrics.impressions, metrics.clicks, metrics.ctr, metrics.cost_micros, metrics.conversions FROM ad_group WHERE ad_group.status != 'PAUSED'"
             ],
         ]);
 
@@ -419,23 +407,6 @@ class GoogleAdsService
         return $response['results'][0]['resourceName'];
     }
 
-    public function getKeywords($customerId, $startDate = null, $endDate = null)
-    {
-        $query = "SELECT campaign.id, ad_group_criterion.keyword.text, ad_group_criterion.approval_status, metrics.impressions, metrics.clicks, metrics.ctr, metrics.cost_micros, metrics.conversions, metrics.all_conversions_value FROM keyword_view WHERE ad_group_criterion.approval_status = 'APPROVED'";
-
-        if ($startDate && $endDate) {
-            $query .= " AND segments.date BETWEEN '$startDate' AND '$endDate'";
-        }
-
-        $response = $this->handleRequest('post', "$this->baseUrl/customers/$customerId/googleAds:search", [
-            'json' => [
-                'query' => $query
-            ],
-        ]);
-
-        return $response;
-    }
-
     public function addKeywordToAdGroup($customerId, $adGroupResourceName, $requestBody = null)
     {
         $operations = [];
@@ -463,17 +434,11 @@ class GoogleAdsService
         return $response;
     }
 
-    public function getAds($customerId, $startDate = null, $endDate = null)
+    public function getAds($customerId)
     {
-        $query = 'SELECT campaign.id, campaign.name, campaign.advertising_channel_type, ad_group.id, ad_group.name, ad_group_ad.ad.id, ad_group_ad.ad.type, ad_group_ad.ad.name, ad_group_ad.ad.final_urls, ad_group_ad.status, metrics.impressions, metrics.clicks, metrics.ctr, metrics.cost_micros, metrics.average_cpc, metrics.average_cpm, metrics.conversions FROM ad_group_ad';
-
-        if ($startDate && $endDate) {
-            $query .= " AND segments.date BETWEEN '$startDate' AND '$endDate'";
-        }
-
         $response = $this->handleRequest('post', "$this->baseUrl/customers/$customerId/googleAds:search", [
             'json' => [
-                'query' => $query
+                'query' => 'SELECT campaign.id, campaign.name, campaign.advertising_channel_type, ad_group.id, ad_group.name, ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.ad.final_urls, ad_group_ad.status, metrics.impressions, metrics.clicks, metrics.ctr, metrics.cost_micros, metrics.average_cpc, metrics.average_cpm, metrics.conversions FROM ad_group_ad'
             ],
         ]);
 
@@ -670,57 +635,6 @@ class GoogleAdsService
         $response = $this->handleRequest('post', "$this->baseUrl/customers/{$customerId}/googleAds:search", [
             'json' => [
                 'query' => "SELECT geo_target_constant.resource_name, geo_target_constant.id, geo_target_constant.name, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.status = 'ENABLED' AND geo_target_constant.country_code = 'SG'"
-            ],
-        ]);
-
-        return $response;
-    }
-
-    public function getPerformanceDevices($customerId, $startDate = null, $endDate = null)
-    {
-        $query = 'SELECT campaign.id, segments.device, metrics.clicks, metrics.conversions, metrics.cost_micros, metrics.ctr, metrics.impressions FROM ad_group';
-
-        if ($startDate && $endDate) {
-            $query .= " AND segments.date BETWEEN '$startDate' AND '$endDate'";
-        }
-
-        $response = $this->handleRequest('post', "$this->baseUrl/customers/$customerId/googleAds:search", [
-            'json' => [
-                'query' => $query
-            ],
-        ]);
-
-        return $response;
-    }
-
-    public function getSummaryGraphData($customerId, $startDate = null, $endDate = null)
-    {
-        $query = "SELECT segments.date, campaign.id, campaign.name, metrics.clicks, metrics.impressions, metrics.conversions, metrics.ctr, metrics.average_cpc, metrics.cost_micros, metrics.cost_per_conversion FROM campaign WHERE campaign.status != 'REMOVED'";
-
-        if ($startDate && $endDate) {
-            $query .= " AND segments.date BETWEEN '$startDate' AND '$endDate'";
-        }
-
-        $response = $this->handleRequest('post', "$this->baseUrl/customers/$customerId/googleAds:search", [
-            'json' => [
-                'query' => $query
-            ],
-        ]);
-
-        return $response;
-    }
-
-    public function getPerformanceDataForGraph($customerId, $startDate = null, $endDate = null)
-    {
-        $query = "SELECT segments.date, campaign.id, campaign.name, campaign.target_roas.target_roas, campaign.status, metrics.clicks, metrics.impressions, metrics.ctr, metrics.conversions, metrics.cost_micros FROM campaign WHERE campaign.status != 'REMOVED'";
-
-        if ($startDate && $endDate) {
-            $query .= " AND segments.date BETWEEN '$startDate' AND '$endDate'";
-        }
-
-        $response = $this->handleRequest('post', "$this->baseUrl/customers/$customerId/googleAds:search", [
-            'json' => [
-                'query' => $query
             ],
         ]);
 

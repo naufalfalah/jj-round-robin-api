@@ -9,5 +9,5 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AgentDetail extends Model
 {
-    use HasFactory, SoftDeletes, DianujHashidsTrait;
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
 }

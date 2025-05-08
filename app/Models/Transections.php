@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\DianujHashidsTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\DianujHashidsTrait;
 
 class Transections extends Model
 {
-    use HasFactory, SoftDeletes, DianujHashidsTrait;
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'available_balance',
@@ -34,6 +34,4 @@ class Transections extends Model
     {
         return $this->belongsTo(User::class, 'client_id');
     }
-
-
 }

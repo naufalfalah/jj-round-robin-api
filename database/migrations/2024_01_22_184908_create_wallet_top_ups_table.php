@@ -18,9 +18,9 @@ return new class extends Migration
             $table->integer('client_id');
             $table->enum('topup_type', ['manual', 'online'])->default('manual');
             $table->double('topup_amount')->nullable();
-            $table->enum('status', ['approve', 'pending', 'rejected','canceled'])->default('pending');
+            $table->enum('status', ['approve', 'pending', 'rejected', 'canceled'])->default('pending');
             $table->text('proof')->nullable()->comment('Deposit Slip Image');
-            $table->enum('added_by',['admin','client'])->nullable();
+            $table->enum('added_by', ['admin', 'client'])->nullable();
             $table->longText('data')->nullable();
             $table->integer('added_by_id')->nullable();
             $table->integer('approved_by')->nullable();

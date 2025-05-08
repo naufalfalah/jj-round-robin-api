@@ -8,6 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 class UserDeviceToken extends Model
 {
     use HasFactory;
-    
+
     protected $guarded = [];
 }

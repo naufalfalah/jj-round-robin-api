@@ -2,32 +2,160 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Constants\LeadConstant;
 use App\Http\Controllers\Controller;
-use App\Models\LeadClient;
-use App\Models\LeadData;
 use App\Models\Ads;
 use App\Models\AdsInvoice;
+use App\Models\ClientLeadFilter;
 use App\Models\ClientMessageTemplate;
-use App\Models\SubAccount;
-use App\Models\User;
+use App\Models\ClientWallet;
 use App\Models\JunkLead;
+use App\Models\LeadClient;
+use App\Models\LeadData;
+use App\Models\LeadSource;
+use App\Models\SubAccount;
 use App\Models\Transections;
+use App\Models\User;
+use App\Models\UserSubAccount;
+use App\Models\WpMessageTemplate;
+use App\Services\GoogleAdsService;
 use App\Traits\AdsSpentTrait;
+use App\Traits\GoogleTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Traits\GoogleTrait;
-use App\Models\WpMessageTemplate;
-use App\Models\ClientWallet;
-use App\Services\GoogleAdsService;
-use App\Traits\ApiResponseTrait;
 
+/**
+ * @group Fetch Lead
+ */
 class FetchLeadsController extends Controller
 {
-    use GoogleTrait, AdsSpentTrait;
-    use ApiResponseTrait;
+    use AdsSpentTrait, GoogleTrait;
 
-    function get_lead_form_website(Request $request, $que_lead = null)
+    public function save($client_id, Request $request)
     {
+        // dd($request->all());
+        $client_id = hashids_decode($client_id);
+        $find_user = User::findOrfail($client_id);
+
+        try {
+            DB::beginTransaction();
+
+            //   code for junk lead
+            $is_admin_spam = LeadClient::where('email', $request->email)->orWhere('mobile_number', $request->mobile_number)->get();
+            $is_admin_spam = $is_admin_spam->where('is_admin_spam', 1)->count();
+
+            if ($is_admin_spam > 0) {
+
+                $junk_lead = new JunkLead;
+                $junk_lead->lead_data = json_encode($request->all());
+                $junk_lead->lead_type = 'webhook';
+                $junk_lead->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'msg' => 'Lead was flagged as spam and saved to junk leads.',
+                ]);
+            }
+            // code for junk lead
+
+            $check_spam_exist = LeadClient::where('client_id', $client_id)
+                ->where('status', 'spam')
+                ->where(function ($query) use ($request) {
+                    $query->where('email', $request->email)
+                        ->orWhere('mobile_number', $request->mobile_number);
+                })->count();
+            if ($check_spam_exist > 0) {
+                $junk_lead = new JunkLead;
+                $junk_lead->lead_data = json_encode($request->all());
+                $junk_lead->lead_type = 'webhook';
+                $junk_lead->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'msg' => 'This Is Junk Lead Save Successfully',
+                ]);
+            }
+
+            $lead_source = LeadSource::where('key', $request->source_type)->first();
+            $source_type_id = $lead_source ? $lead_source->id : LeadSource::where('key', 'Unknown')->first()->id;
+
+            $existing_lead = LeadClient::where('client_id', $client_id)
+                ->where('source_type_id', $source_type_id)
+                ->where(function ($query) use ($request) {
+                    $query->where('email', $request->email)
+                        ->orWhere('mobile_number', $request->mobile_number);
+                })->count();
+
+            if ($existing_lead > 0) {
+                $junk_lead = new JunkLead;
+                $junk_lead->lead_data = json_encode($request->all());
+                $junk_lead->save();
+
+                return response()->json([
+                    'success' => false,
+                    'msg' => 'Lead already exists with the same email, mobile number, and source type',
+                ]);
+            }
+
+            $client_lead = new LeadClient;
+            $client_lead->client_id = $find_user->id;
+            $client_lead->name = $request->name;
+            $client_lead->email = $request->email;
+            $client_lead->mobile_number = $request->mobile_number;
+            $client_lead->lead_type = 'webhook';
+            $client_lead->source_type_id = $source_type_id;
+            $client_lead->added_by_id = $find_user->id;
+            $client_lead->save();
+
+            $sheet_name = 'webhook';
+            $spreadsheet_id = $find_user->spreadsheet_id;
+            if (!empty($spreadsheet_id)) {
+                $this->saveToGoogleSheet($request->name, $request->email, $request->mobile_number, $request->additional_data, $sheet_name, $spreadsheet_id);
+            }
+
+            $lead_data = [];
+            if (!empty($request->additional_data) && count($request->additional_data) > 0) {
+                foreach ($request->additional_data as $k => $val) {
+                    $lead_data[] = [
+                        'lead_client_id' => $client_lead->id,
+                        'key' => $val['key'],
+                        'value' => $val['value'],
+                        'added_by_id' => $find_user->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+                LeadData::insert($lead_data);
+            }
+
+            $lead_id = hashids_encode($client_lead->id);
+            send_whatsapp_msg('Thank You', $client_lead->mobile_number);
+            send_push_notification('New Lead', 'New Lead Add From webhook', $client_lead->client_id, $client_lead->id);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'msg' => 'Lead Added Successfully',
+            ]);
+
+        } catch (\Exception $e) {
+
+            DB::rollback();
+
+            $errorMessage = $e->getMessage();
+
+            throw new \Exception("Error saving lead webhook: $errorMessage");
+        }
+    }
+
+    public function get_lead_form_website(Request $request, $que_lead = null)
+    {
+
         if ($que_lead == null) {
             $referer = $this->extractBaseUrlPattern($request->source_url);
             $username = $request->header('PHP_AUTH_USER');
@@ -42,21 +170,65 @@ class FetchLeadsController extends Controller
         }
 
         $check_referer_exist = Ads::where('website_url', $referer)->where('status', 'running')->first();
+
         if ($check_referer_exist) {
+
+            //   code for junk lead
+            $is_admin_spam = LeadClient::where('is_admin_spam', 1)
+                ->where(function ($query) use ($request) {
+                    $query->where('email', $request->email)
+                        ->orWhere('mobile_number', $request->mobile_number);
+                })->count();
+
+            if ($is_admin_spam > 0) {
+
+                $junk_lead = new JunkLead;
+                $junk_lead->lead_data = json_encode($request->all());
+                $junk_lead->lead_type = 'webhook';
+                $junk_lead->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'msg' => 'Lead was flagged as spam and saved to junk leads.',
+                ]);
+            }
+            // code for junk lead
+
+            $check_spam_exist = LeadClient::where('client_id', $check_referer_exist->client_id)
+                ->where('status', 'spam')
+                ->where(function ($query) use ($request) {
+                    $query->where('email', $request->email)
+                        ->orWhere('mobile_number', $request->mobile_number);
+                })->count();
+            if ($check_spam_exist > 0) {
+                $junk_lead = new JunkLead;
+                $junk_lead->lead_data = json_encode($request->all());
+                $junk_lead->sub_account_id = $check_referer_exist->id ?? '';
+                $junk_lead->sub_account_url = $request->source_url ?? '';
+                $junk_lead->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'msg' => 'This Is Junk Lead Save Successfully',
+                ]);
+            }
 
             $check_email_exist = LeadClient::where('client_id', $check_referer_exist->client_id)
                 ->where('ads_id', $check_referer_exist->id)
                 ->where(function ($query) use ($request) {
                     $query->where('email', $request->email)
                         ->orWhere('mobile_number', $request->mobile_number);
-                })
-                ->count();
+                })->count();
             if ($check_email_exist > 0) {
                 $junk_lead = new JunkLead;
                 if ($que_lead == null) {
                     $junk_lead->lead_data = json_encode($request->all());
-                    $junk_lead->sub_account_id = $check_referer_exist->id ?? "";
-                    $junk_lead->sub_account_url = $request->source_url ?? "";
+                    $junk_lead->sub_account_id = $check_referer_exist->id ?? '';
+                    $junk_lead->sub_account_url = $request->source_url ?? '';
                 } else {
                     $junk_lead->lead_data = $que_lead->lead_data;
                     $upd_status = JunkLead::find($que_lead->id);
@@ -69,7 +241,7 @@ class FetchLeadsController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'msg' => 'This Is Junk Lead Save Successfully'
+                    'msg' => 'This Is Junk Lead Save Successfully',
                 ]);
             } else {
                 if ($que_lead == null) {
@@ -79,7 +251,7 @@ class FetchLeadsController extends Controller
                 }
 
                 if (!empty($check_referer_exist) && !empty($leads)) {
-                    $ads_lead = new LeadClient();
+                    $ads_lead = new LeadClient;
                     if ($request->status == 'DNC Registry') {
                         $ads_lead->client_id = 0;
                         $ads_lead->status = 'DNC Registry';
@@ -119,6 +291,7 @@ class FetchLeadsController extends Controller
                             }
                         }
                         LeadData::insert($lead_key_data);
+                        send_push_notification('New Lead', 'New Lead Add From PPC', $ads_lead->client_id, $ads_lead->id);
                     }
 
                     if ($que_lead != null) {
@@ -128,20 +301,19 @@ class FetchLeadsController extends Controller
                     }
 
                     if (isset($ads_lead->email) && !empty($ads_lead->email)) {
-                        $leadMessage = "New Lead Please take note!
+                        $leadMessage = 'New Lead Please take note!
 ===========================
-Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
+Hello '.$check_referer_exist->client->client_name.", you have a new lead:
 - Name: {$ads_lead->name}
 - Email: {$ads_lead->email}
 - Mobile Number: https://wa.me/+65{$ads_lead->mobile_number}";
                     } else {
-                        $leadMessage = "New Lead Please take note!
+                        $leadMessage = 'New Lead Please take note!
 ===========================
-Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
+Hello '.$check_referer_exist->client->client_name.", you have a new lead:
 - Name: {$ads_lead->name}
 - Mobile Number: https://wa.me/+65{$ads_lead->mobile_number}";
                     }
-
 
                     if (!empty($request->additional_data) && count($request->additional_data) > 0) {
                         foreach ($request->additional_data as $val) {
@@ -163,37 +335,66 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
                         $ads_lead->is_send_discord = 0;
                     }
                     $ads_lead->save();
+
+                    $check_msg_status = WpMessageTemplate::first();
+                    // whatsapp msg send code
+                    if (isset($check_msg_status->status) && $check_msg_status->status === 'Enable') {
+
+                        if ($request->status != 'DNC Registry') {
+                            if ($request->mobile_number && !empty($request->mobile_number)) {
+                                $get_message = ClientMessageTemplate::where('client_id', $ads_lead->id)->first();
+                                if ($get_message) {
+                                    $replece_name = str_replace('@clientName', $ads_lead->name, $get_message->message_template);
+                                    $replece_email = str_replace('@email', $ads_lead->email, $replece_name);
+                                    $replece_phone = str_replace('@phone', $ads_lead->mobile_number, $replece_email);
+
+                                    $send_message = $this->send_wp_message($request->mobile_number, $replece_phone);
+                                } else {
+                                    $get_message = WpMessageTemplate::first();
+                                    $replece_name = str_replace('@clientName', $ads_lead->name, $get_message->wp_message);
+                                    $replece_email = str_replace('@email', $ads_lead->email, $replece_name);
+                                    $replece_phone = str_replace('@phone', $ads_lead->mobile_number, $replece_email);
+
+                                    $send_message = $this->send_wp_message($request->mobile_number, $replece_phone);
+
+                                }
+                            }
+                        }
+                    }
+
+                    // whatsapp msg send code
                 }
 
                 DB::commit();
 
                 $response = $this->verifySalesperson($request->mobile_number);
                 if (@$response->result) {
-                    $ads_lead->user_status = "agent";
+                    $ads_lead->user_status = 'agent';
                     $ads_lead->registration_no = $response->data->reg_number;
                     $ads_lead->save();
                 }
 
                 return response()->json([
                     'success' => true,
-                    'msg' => 'Lead Send Successfully'
+                    'msg' => 'Lead Send Successfully',
                 ]);
             }
+
         } else {
             $junk_lead = new JunkLead;
             $junk_lead->lead_data = json_encode($request);
-            $junk_lead->status = "que_lead";
-            $junk_lead->sub_account_url = $request->source_url ?? "";
+            $junk_lead->status = 'que_lead';
+            $junk_lead->sub_account_url = $request->source_url ?? '';
             $junk_lead->save();
 
             return response()->json([
                 'success' => true,
-                'msg' => 'No Sub Account Match! Lead Save In a Que'
+                'msg' => 'No Sub Account Match! Lead Save In a Que',
             ]);
         }
     }
 
-    function add_ppc_lead(Request $request, $que_lead = null)
+    public function add_ppc_lead(Request $request, $que_lead = null)
     {
         if ($que_lead == null) {
             $referer = $this->extractBaseUrlPattern($request->source_url);
@@ -210,22 +411,20 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
 
         $check_referer_exist = SubAccount::where('sub_account_url', $referer)->where('status', 'Active')->first();
 
-
         if ($check_referer_exist) {
             $user_ids = User::where('sub_account_id', $check_referer_exist->id)->pluck('id');
         } else {
             $junk_lead = new JunkLead;
             $junk_lead->lead_data = json_encode($request);
-            $junk_lead->status = "que_lead";
-            $junk_lead->sub_account_url = $request->source_url ?? "";
+            $junk_lead->status = 'que_lead';
+            $junk_lead->sub_account_url = $request->source_url ?? '';
             $junk_lead->save();
 
             return response()->json([
                 'success' => true,
-                'msg' => 'No Sub Account Match! Lead Save In a Que'
+                'msg' => 'No Sub Account Match! Lead Save In a Que',
             ]);
         }
-
 
         try {
             $adsList = $this->findRunningAds($user_ids, $check_referer_exist->id);
@@ -233,10 +432,11 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
             if (!isset($adsList->client_id)) {
                 $junk_lead = new JunkLead;
                 $junk_lead->lead_data = json_encode($request->all());
-                $junk_lead->status = "que_lead";
-                $junk_lead->sub_account_id = $check_referer_exist->id ?? "";
-                $junk_lead->sub_account_url = $request->source_url ?? "";
+                $junk_lead->status = 'que_lead';
+                $junk_lead->sub_account_id = $check_referer_exist->id ?? '';
+                $junk_lead->sub_account_url = $request->source_url ?? '';
                 $junk_lead->save();
+
                 return $adsList;
             }
 
@@ -253,8 +453,8 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
                 $junk_lead = new JunkLead;
                 if ($que_lead == null) {
                     $junk_lead->lead_data = json_encode($request->all());
-                    $junk_lead->sub_account_id = $check_referer_exist->id ?? "";
-                    $junk_lead->sub_account_url = $request->source_url ?? "";
+                    $junk_lead->sub_account_id = $check_referer_exist->id ?? '';
+                    $junk_lead->sub_account_url = $request->source_url ?? '';
                 } else {
                     $junk_lead->lead_data = $que_lead->lead_data;
                     $upd_status = JunkLead::find($que_lead->id);
@@ -267,7 +467,7 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
 
                 return response()->json([
                     'success' => true,
-                    'msg' => 'This Is Junk Lead Save Successfully'
+                    'msg' => 'This Is Junk Lead Save Successfully',
                 ]);
             } else {
                 if ($que_lead == null) {
@@ -277,7 +477,7 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
                 }
 
                 if (!empty($adsList) && !empty($leads)) {
-                    $ads_lead = new LeadClient();
+                    $ads_lead = new LeadClient;
                     if ($request->status == 'DNC Registry') {
                         $ads_lead->client_id = 0;
                         $ads_lead->status = 'DNC Registry';
@@ -298,7 +498,7 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
                         if (isset($request->email) && !empty($request->email)) {
                             $this->saveToGoogleSheet($request->name, $request->email, $request->mobile_number, $request->additional_data, $sheet_name, $spreadsheet_id);
                         } else {
-                            $this->saveToGoogleSheet($request->name, $request->email ?? "", $request->mobile_number, $request->additional_data, $sheet_name, $spreadsheet_id);
+                            $this->saveToGoogleSheet($request->name, $request->email ?? '', $request->mobile_number, $request->additional_data, $sheet_name, $spreadsheet_id);
                         }
                     }
 
@@ -337,16 +537,16 @@ Hello " . $check_referer_exist->client->client_name . ", you have a new lead:
                     }
 
                     if (isset($ads_lead->email) && !empty($ads_lead->email)) {
-                        $leadMessage = "New Lead Please take note!
+                        $leadMessage = 'New Lead Please take note!
 ===========================
-Hello " . $adsList->client->client_name . ", you have a new lead:
+Hello '.$adsList->client->client_name.", you have a new lead:
 - Name: {$ads_lead->name}
 - Email: {$ads_lead->email}
 - Mobile Number: https://wa.me/+65{$ads_lead->mobile_number}";
                     } else {
-                        $leadMessage = "New Lead Please take note!
+                        $leadMessage = 'New Lead Please take note!
 ===========================
-Hello " . $adsList->client->client_name . ", you have a new lead:
+Hello '.$adsList->client->client_name.", you have a new lead:
 - Name: {$ads_lead->name}
 - Mobile Number: https://wa.me/+65{$ads_lead->mobile_number}";
                     }
@@ -374,7 +574,7 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
                     $ads_lead->save();
 
                     $check_msg_status = WpMessageTemplate::first();
-                    //whatsapp msg send code
+                    // whatsapp msg send code
                     if ($check_msg_status->status === 'active') {
 
                         if ($request->status != 'DNC Registry') {
@@ -393,12 +593,13 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
                                     $replece_phone = str_replace('@phone', $ads_lead->mobile_number, $replece_email);
 
                                     $send_message = $this->send_wp_message($request->mobile_number, $replece_phone);
+
                                 }
                             }
                         }
                     }
 
-                    //whatsapp msg send code
+                    // whatsapp msg send code
                     $adsList->lead_status = 1;
                     $adsList->save();
                 }
@@ -407,14 +608,14 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
 
                 $response = $this->verifySalesperson($request->mobile_number);
                 if (@$response->result) {
-                    $ads_lead->user_status = "agent";
+                    $ads_lead->user_status = 'agent';
                     $ads_lead->registration_no = $response->data->reg_number;
                     $ads_lead->save();
                 }
 
                 return response()->json([
                     'success' => true,
-                    'msg' => 'Lead Send Successfully'
+                    'msg' => 'Lead Send Successfully',
                 ]);
             }
         } catch (\Exception $e) {
@@ -430,15 +631,15 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
         }
     }
 
-    function week_payment()
+    public function week_payment()
     {
         $get_sub_accounts = SubAccount::get();
 
         foreach ($get_sub_accounts as $sub_account) {
-            $users = User::where('sub_account_id', $sub_account->id)->get();
+            $user_sub_accounts = UserSubAccount::where('sub_account_id', $sub_account->id)->get();
 
-            foreach ($users as $user) {
-                $ads = Ads::where('client_id', $user->id)->whereIn('status', ['running', 'pause'])->get();
+            foreach ($user_sub_accounts as $user_sub_account) {
+                $ads = Ads::where('user_sub_account_id', $user_sub_account->id)->whereIn('status', ['running', 'pause'])->get();
 
                 foreach ($ads as $ad) {
 
@@ -474,8 +675,8 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
 
                     $ads_invoice = new AdsInvoice;
                     $ads_invoice->client_id = $ad->client_id;
-                    $ads_invoice->invoice_date =  date('Y-m-d');
-                    $ads_invoice->gst =  ($this_weak_payment * (9 / 100));
+                    $ads_invoice->invoice_date = date('Y-m-d');
+                    $ads_invoice->gst = ($this_weak_payment * (9 / 100));
                     $ads_invoice->total_amount = $this_weak_payment;
                     $ads_invoice->total_lead = $this->this_week_client_leads($ad->client_id);
                     $ads_invoice->start_date = $weekStartDate;
@@ -488,7 +689,7 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
 
     public function monthly_payment()
     {
-        $googleAdsService = new GoogleAdsService();
+        $googleAdsService = new GoogleAdsService;
         $ads = Ads::whereIn('status', ['running', 'pause'])->get();
 
         foreach ($ads as $ad) {
@@ -581,7 +782,7 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
                     foreach ($activeCampaigns['results'] as $activeCampaign) {
                         $campaignResourceName = $activeCampaign['campaign']['resourceName'];
                         $updateRequestBody = [
-                            'status' => 'PAUSED'
+                            'status' => 'PAUSED',
                         ];
 
                         $googleAdsService->updateCampaign($customerId, $campaignResourceName, $updateRequestBody);
@@ -606,6 +807,7 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
             $ads_invoice->end_date = $monthEndDate;
             $ads_invoice->save();
         }
+
         return true;
     }
 
@@ -618,7 +820,7 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
         if ($runningAdsCount == 0) {
             return response()->json([
                 'success' => true,
-                'msg' => 'Running Ads Not Found! Que Lead Save Successfully'
+                'msg' => 'Running Ads Not Found! Que Lead Save Successfully',
             ]);
         }
 
@@ -628,6 +830,7 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
         // If no ads found with lead_status '0', update all running ads to have lead_status '0' and retry
         if (empty($adsList)) {
             Ads::where('status', 'running')->whereIn('client_id', $ids)->update(['lead_status' => 0]);
+
             return $this->findRunningAds($ids, $sub_account_id);
             // Recursively call the function to retry finding ads
         }
@@ -652,7 +855,7 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
         return $adsList;
     }
 
-    function send_client_leads_on_discord($leads_start_time)
+    public function send_client_leads_on_discord($leads_start_time)
     {
         $get_leads = LeadClient::with('lead_data', 'clients')
             ->where('lead_type', 'ppc')->where('is_send_discord', '0')
@@ -661,12 +864,34 @@ Hello " . $adsList->client->client_name . ", you have a new lead:
 
         if ($get_leads->count() > 0) {
             foreach ($get_leads as $key => $lead) {
+                $clientLeadFilter = ClientLeadFilter::where('client_id', $lead->client_id)
+                    ->first();
+
+                if ($clientLeadFilter) {
+                    $leadFilter = explode(',', $clientLeadFilter->lead_filters);
+
+                    if (in_array(LeadConstant::FILTERS['junk']['value'], $leadFilter) && $this->is_junk($lead)) {
+                        continue;
+                    }
+
+                    if (in_array(LeadConstant::FILTERS['duplicate']['value'], $leadFilter) && $this->is_duplicate($lead)) {
+                        continue;
+                    }
+
+                    if (in_array(LeadConstant::FILTERS['dnc']['value'], $leadFilter) && $this->is_dnc($lead)) {
+                        continue;
+                    }
+
+                    if (in_array(LeadConstant::FILTERS['bad_words']['value'], $leadFilter) && $this->has_bad_words($lead)) {
+                        continue;
+                    }
+                }
 
                 $get_discord_link = Ads::where('client_id', $lead->client_id)->latest()->first(['discord_link']);
 
-                $leadMessage = "New Lead Please take note!
+                $leadMessage = 'New Lead Please take note!
 ===========================
-Hello " . $lead->clients->client_name . ", you have a new lead:
+Hello '.$lead->clients->client_name.", you have a new lead:
 - Name: {$lead->name}
 - Email: {$lead->email}
 - Mobile Number: https://wa.me/+65{$lead->mobile_number}";
@@ -688,27 +913,80 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
                 $lead->save();
             }
         } else {
-            return response()->json(['error' => 'No leads found.'],  422);
+            return response()->json(['error' => 'No leads found.'], 422);
         }
+    }
+
+    private function is_junk($lead)
+    {
+        $junkLead = JunkLead::where('lead_data', 'LIKE', '%'.$lead->name.'%')
+            ->orWhere('lead_data', 'LIKE', '%'.$lead->email.'%')
+            ->orWhere('lead_data', 'LIKE', '%'.$lead->mobile_number.'%')
+            ->first();
+
+        return $junkLead !== null;
+    }
+
+    private function is_duplicate($lead)
+    {
+        return LeadClient::where('email', $lead->email)
+            ->orWhere('mobile_number', $lead->mobile_number)
+            ->exists();
+    }
+
+    private function is_dnc($lead)
+    {
+        return in_array($lead->email, $this->dnc_list());
+    }
+
+    private function dnc_list()
+    {
+        return [
+            'example@example.com',
+            'test@domain.com',
+        ];
+    }
+
+    private function has_bad_words($lead)
+    {
+        foreach ([$lead->name, $lead->email, $lead->mobile_number] as $field) {
+            foreach ($this->bad_words_list() as $badWord) {
+                if (stripos($field, $badWord) !== false) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function bad_words_list()
+    {
+        return [
+            'spam',
+            'fraud',
+            'scam',
+        ];
     }
 
     public function send_que_leads()
     {
+
         $check_running_ads = Ads::where('status', 'running')->count();
         if ($check_running_ads == 0) {
             return response()->json([
                 'success' => false,
-                'message' => "There Is No Running Ads."
+                'message' => 'There Is No Running Ads.',
             ]);
         } else {
             $get_que_lead = JunkLead::where('status', 'que_lead')->where('is_send', '0')->first();
             if ($get_que_lead) {
-                $request = new Request();
+                $request = new Request;
                 $send_que_lead = $this->add_ppc_lead($request, $get_que_lead);
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => "There Is No Leads In Que."
+                    'message' => 'There Is No Leads In Que.',
                 ]);
             }
         }
@@ -716,14 +994,14 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
 
     private function send_discord_msg($url, $data)
     {
-        $post_array = array(
+        $post_array = [
             'content' => $data,
             'embeds' => null,
-            'attachments' => []
-        );
+            'attachments' => [],
+        ];
         $curl = curl_init();
 
-        curl_setopt_array($curl, array(
+        curl_setopt_array($curl, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
@@ -733,12 +1011,12 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'POST',
             CURLOPT_POSTFIELDS => json_encode($post_array),
-            CURLOPT_HTTPHEADER => array(
+            CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
-                'Cookie: __dcfduid=8ec71370974011ed9aeb96cee56fe4d4; __sdcfduid=8ec71370974011ed9aeb96cee56fe4d49deabe12bc0fc3d686d23eaa0b49af957ffe68eadec722cff5170d5c750b00ea'
-            ),
-            CURLOPT_SSL_VERIFYPEER => false
-        ));
+                'Cookie: __dcfduid=8ec71370974011ed9aeb96cee56fe4d4; __sdcfduid=8ec71370974011ed9aeb96cee56fe4d49deabe12bc0fc3d686d23eaa0b49af957ffe68eadec722cff5170d5c750b00ea',
+            ],
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
 
         $response = curl_exec($curl);
 
@@ -750,18 +1028,16 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
     private function extractBaseUrlPattern($url)
     {
         $parsedUrl = parse_url($url);
-        if (!isset($parsedUrl) || !isset($parsedUrl['scheme'])) {
-            return $this->sendErrorResponse('Sceme is required', 400);
-        }
-        return $parsedUrl['scheme'] . '://' . $parsedUrl['host'] . '/';
+
+        return $parsedUrl['scheme'].'://'.$parsedUrl['host'].'/';
     }
 
     private function send_wp_message($client_number, $message)
     {
-        die();
+
         $curl = curl_init();
         $api_key = config('app.wp_api_key');
-        curl_setopt_array($curl, array(
+        curl_setopt_array($curl, [
             CURLOPT_URL => 'https://api.p.2chat.io/open/whatsapp/send-message',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
@@ -770,29 +1046,32 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => json_encode(array(
-                "to_number" => $client_number,
-                "from_number" => "+6589469107",
-                "text" => $message
-            )),
-            CURLOPT_HTTPHEADER => array(
+            CURLOPT_POSTFIELDS => json_encode([
+                'to_number' => '+65'.$client_number,
+                'from_number' => '+6589469107',
+                'text' => $message,
+            ]),
+            CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
-                'X-User-API-Key: ' . $api_key
-            ),
-        ));
+                'X-User-API-Key: '.$api_key,
+            ],
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
 
         $response = curl_exec($curl);
 
         if (curl_errno($curl)) {
-            echo 'Curl error: ' . curl_error($curl);
+            echo 'Curl error: '.curl_error($curl);
         }
 
         curl_close($curl);
+
         return $response;
     }
 
     public function add_message_to_user(Request $request)
     {
+
         $get_clients = User::all();
 
         $get_message = ClientMessageTemplate::first();
@@ -821,7 +1100,7 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
     {
         $curl = curl_init();
 
-        curl_setopt_array($curl, array(
+        curl_setopt_array($curl, [
             CURLOPT_URL => 'https://api.jomejourney-portal.com/api/verify-salesperson',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
@@ -831,21 +1110,23 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'POST',
             CURLOPT_POSTFIELDS => '{
-            "phone":"' . $mobileNumber . '"
+            "phone":"'.$mobileNumber.'"
         }',
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json'
-            ),
-        ));
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+            ],
+        ]);
 
         $response = curl_exec($curl);
 
         curl_close($curl);
+
         return json_decode($response);
     }
 
     public function assign_template_to_clients()
     {
+
         $adminTemplate = WpMessageTemplate::latest()->first();
 
         if (!$adminTemplate) {
@@ -871,10 +1152,10 @@ Hello " . $lead->clients->client_name . ", you have a new lead:
             ];
         }
         $client_message_template = ClientMessageTemplate::insert($clientTemplates);
-        if (!$client_message_template) {
+        if ($client_message_template) {
+            return response()->json(['message' => 'Messages assigned to all users successfully.']);
+        } else {
             return response()->json(['error' => 'Failed to assign admin message template: '], 500);
         }
-
-        return response()->json(['message' => 'Messages assigned to all users successfully.']);
     }
 }

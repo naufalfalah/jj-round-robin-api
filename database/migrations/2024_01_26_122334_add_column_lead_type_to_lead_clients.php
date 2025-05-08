@@ -14,7 +14,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('lead_clients', function (Blueprint $table) {
-            $table->enum('lead_type', ['manual', 'zapier', 'ppc'])->default('manual')->after('status');
+            $table->enum('lead_type', ['manual', 'webhook', 'ppc'])->default('manual')->after('status');
         });
     }
 

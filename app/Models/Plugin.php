@@ -11,6 +11,6 @@ class Plugin extends Model
 
     protected $fillable = [
         'plugin_name',
-        'status'
+        'status',
     ];
 }

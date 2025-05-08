@@ -14,7 +14,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('ads', function (Blueprint $table) {
-            $table->enum('spend_type', ['daily','monthly'])->nullable()->after('spend_amount');
+            $table->enum('spend_type', ['daily', 'monthly'])->nullable()->after('spend_amount');
         });
     }
 

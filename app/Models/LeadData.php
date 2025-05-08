@@ -9,5 +9,5 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LeadData extends Model
 {
-    use HasFactory, DianujHashidsTrait, SoftDeletes;
+    use DianujHashidsTrait, HasFactory, SoftDeletes;
 }

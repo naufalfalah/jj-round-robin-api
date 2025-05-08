@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\DianujHashidsTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\DianujHashidsTrait;
 
 class Permission extends Model
 {
-    use HasFactory , DianujHashidsTrait;
+    use DianujHashidsTrait , HasFactory;
 
     /**
      * Get the permission_type that owns the Permission
@@ -17,6 +17,6 @@ class Permission extends Model
      */
     public function permission_type()
     {
-        return $this->belongsTo(PermissionType::class, 'permission_type_id', 'id');
+        return $this->belongsTo(PremissionType::class, 'permission_type_id', 'id');
     }
 }

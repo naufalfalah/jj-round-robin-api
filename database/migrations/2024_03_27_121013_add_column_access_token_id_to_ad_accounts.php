@@ -14,7 +14,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('ad_accounts', function (Blueprint $table) {
-            $table->Integer("access_token_id")->nullable()->after('id');
+            $table->Integer('access_token_id')->nullable()->after('id');
         });
     }
 
