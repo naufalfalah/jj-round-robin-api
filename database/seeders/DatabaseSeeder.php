@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Admin;
+use App\Models\Package;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -29,6 +30,7 @@ class DatabaseSeeder extends Seeder
             AgencySeeder::class,
             PermissionSeeder::class,
             PermissionTypeSeeder::class,
+            PackageSeeder::class,
         ]);
     }
 }

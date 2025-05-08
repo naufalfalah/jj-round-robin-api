@@ -186,7 +186,6 @@ trait PackageTrait
         $userSubAccount->sub_account_id = $package->sub_account_id;
         $userSubAccount->package_id = $package->id;
         $userSubAccount->save();
-
         $wallet = new WalletTopUp;
         $wallet->client_id = $clientId;
         $wallet->sub_account_id = $package->sub_account_id;
