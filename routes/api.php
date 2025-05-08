@@ -14,8 +14,9 @@ use App\Http\Controllers\Api\TourController;
 */
 
 // Routes with XSS Middleware
-Route::middleware(['XSS'])->group(function () {
+Route::middleware(['XSS', 'api'])->group(function () {
     Route::prefix('auth')->controller(AuthController::class)->group(function () {
+        Route::post('/register', 'register')->name('auth.register');
         Route::post('/login', 'login')->name('auth.login');
         Route::post('/refresh-token', 'refresh')->name('auth.refresh-token');
     });

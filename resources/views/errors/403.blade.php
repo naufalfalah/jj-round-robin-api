@@ -8,13 +8,13 @@
                         <div class="card-body p-5">
                             <h1 class="display-1"><strong>403</strong></h1>
                             <h2 class="font-weight-bold display-4"><strong>Forbidden</strong></h2>
-                        <p>you don’t have permission to access this resource.
+                            <p>you don’t have permission to access this resource.
                             <div class="mt-5">
-                                @if (auth('admin')->check())
+                                {{-- @if (auth('admin')->check())
                                     <a href="{{ route('admin.home') }}" class="btn btn-primary btn-lg px-md-5 radius-30">Go Dashboard</a>
                                 @else
                                     <a href="{{ route('user.dashboard') }}" class="btn btn-primary btn-lg px-md-5 radius-30">Go Dashboard</a>
-                                @endif
+                                @endif --}}
                             </div>
                         </div>
                     </div>

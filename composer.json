@@ -19,6 +19,7 @@
         "maatwebsite/excel": "^3.1",
         "spatie/browsershot": "^4.1",
         "stripe/stripe-php": "^15.3",
+        "tymon/jwt-auth": "^2.2",
         "yajra/laravel-datatables": "^9.0"
     },
     "require-dev": {

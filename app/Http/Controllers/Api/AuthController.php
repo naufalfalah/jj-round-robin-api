@@ -4,16 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agency;
+use App\Models\ClientFolder;
 use App\Models\User;
-use App\Models\UserOtp;
-use Illuminate\Http\Request;
 use App\Models\UserDeviceToken;
+use App\Models\UserOtp;
 use App\Traits\ApiResponseTrait;
+use App\Traits\GoogleTrait;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
-use Tymon\JWTAuth\Exceptions\JWTException;
-use App\Traits\GoogleTrait;
 
 class AuthController extends Controller
 {
@@ -51,6 +53,78 @@ class AuthController extends Controller
         $message = "User Login Successfully";
         return $this->createNewToken($token,$message);
     }
+
+
+    /**
+     * Register a User.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+
+     public function register(Request $request)
+     {
+         $validator = Validator::make($request->all(), [
+             'client_name' => 'required|string|max:50',
+             'email' => 'required|string|email|max:255|unique:users',
+             'phone_number' => 'required|numeric|unique:users',
+             // 'agency' => 'required|string|unique:users',
+             'agency' => 'required|integer',
+             'password' => 'required|string|confirmed|min:8|max:12|regex:/^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]+$/',
+         ], ['password.regex' => 'Invalid Format. Password should be 8 characters, with at least 1 number and special characters.',]);
+ 
+         if ($validator->fails()) {
+             $errors = $validator->errors();
+             $errorMessages = [];
+             // $errorMessages = [];
+             foreach ($errors->all() as $message) {
+                 $errorMessages[] = $message;
+             }
+ 
+             return $this->sendErrorResponse(implode("\n ", $errorMessages), 400);
+         }
+
+         DB::beginTransaction();
+         try {
+             $create_user = new User;
+             $create_user->client_name = $request->client_name;
+             $create_user->email = $request->email;
+             $create_user->phone_number  = $request->phone_number;
+             $create_user->agency_id = $request->agency;
+             // $create_user->industry_id = $request->industry;
+             $create_user->password = bcrypt($request->password);
+ 
+             // $folder_name = $create_user->agency.'-'.$create_user->client_name;
+             $folder_name = $create_user->client_name . '-' . $create_user->email;
+             $create_user->save();
+ 
+ 
+             $client_folder = new ClientFolder;
+             $client_folder->client_id = $create_user->id;
+             // $client_folder->folder_name = $folder_name;
+             $client_folder->folder_name = $create_user->client_name . '-' . $create_user->id;
+             $client_folder->save();
+ 
+             $create_user->save();
+ 
+             $token = auth('api')->attempt(['email' => $create_user->email, 'password' => $request->password]);
+
+             $data = [
+                 'user' => [
+                     'id' => $create_user->id,
+                     'client_name' => $create_user->client_name,
+                     'email' => $create_user->email,
+                     'phone_number' => $create_user->phone_number,
+                     'updated_at' => $create_user->updated_at,
+                     'created_at' => $create_user->created_at,
+                 ],
+                 'token' => $token,
+             ];
+             DB::commit();
+             return $this->sendSuccessResponse('User successfully registered', $data);
+         } catch (\Exception $e) {
+             return response()->json(['error' => 'Registration Failed: ' . $e->getMessage()], 500);
+         }
+     }
 
     /**
      * Log the user out (Invalidate the token).
@@ -137,41 +211,5 @@ class AuthController extends Controller
         ];
 
         return $this->sendSuccessResponse($message,$data);
-    }
-
-    public function resendOtp()
-    {
-        $user_id = auth('api')->id();
-        $user = User::find($user_id);
-        $otpcode = UserOtp::where('user_id', $user_id);
-        if ($otpcode->count() == 0) {
-            $newOpt = new UserOtp();
-            $newOpt->user_id = $user->id;
-            $newOpt->is_expired = 0;
-            $newOpt->otp = mt_rand(1111, 9999);
-            $newOpt->save();
-
-            $data = array(
-                'code' => $newOpt->otp,
-            );
-
-            send_email('verify_otp', $user->email, 'Verification Code', $data);
-
-            return $this->sendSuccessResponse('Verification Code Resent Successfully',[]);
-
-        } else {
-            $otpcode = $otpcode->latest()->first();
-            $otpcode->is_expired = 0;
-            $otpcode->otp = mt_rand(1111, 9999);
-            $otpcode->save();
-
-            $data = array(
-                'code' => $otpcode->otp,
-            );
-
-            send_email('verify_otp', $user->email, 'Verification Code', $data);
-
-            return $this->sendSuccessResponse('Verification Code Resent Successfully',[]);
-        }
     }
 }

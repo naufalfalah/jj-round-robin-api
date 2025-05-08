@@ -13,11 +13,11 @@
                 <br>The page you requested could not be found.
                 <br>Dont'worry and return to the previous page.</p>
               <div class="mt-5">
-                @if (auth('admin')->check())
+                {{-- @if (auth('admin')->check())
                     <a href="{{ route('admin.home') }}" class="btn btn-primary btn-lg px-md-5 radius-30">Go Dashboard</a>
                 @else
                     <a href="{{ route('user.dashboard') }}" class="btn btn-primary btn-lg px-md-5 radius-30">Go Dashboard</a>
-                @endif
+                @endif --}}
               </div>
             </div>
           </div>

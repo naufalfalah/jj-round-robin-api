@@ -12,6 +12,7 @@
 docker-compose.override.yml
 npm-debug.log
 yarn-error.log
+.htaccess
 
 # Ignore app files
 /public/client_secret.json
